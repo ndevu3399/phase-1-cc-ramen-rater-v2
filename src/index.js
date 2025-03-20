@@ -1,57 +1,105 @@
-// src/index.js
-export function displayRamens() {
-  fetch("http://localhost:3000/ramens") // Assuming you have a JSON server running
-    .then((response) => response.json())
-    .then((ramens) => {
-      const ramenMenu = document.getElementById("ramen-menu");
-      ramenMenu.innerHTML = ""; // Clear previous content
+document.addEventListener("DOMContentLoaded", main);
 
-      ramens.forEach((ramen) => {
-        const img = document.createElement("img");
-        img.src = ramen.image;
-        img.alt = ramen.name;
-        img.addEventListener("click", () => handleClick(ramen));
-        ramenMenu.appendChild(img);
-      });
-    })
-    .catch((error) => console.error("Error fetching ramens:", error));
+function main() {
+    displayRamens();
+    addSubmitListener();
 }
 
-export function handleClick(ramen) {
-  const detailImg = document.getElementById("ramen-detail-image");
-  const detailName = document.getElementById("ramen-detail-name");
-  const detailRestaurant = document.getElementById("ramen-detail-restaurant");
-  const detailRating = document.getElementById("ramen-detail-rating");
-  const detailComment = document.getElementById("ramen-detail-comment");
-
-  detailImg.src = ramen.image;
-  detailImg.alt = ramen.name;
-  detailName.textContent = ramen.name;
-  detailRestaurant.textContent = ramen.restaurant;
-  detailRating.textContent = `Rating: ${ramen.rating}`;
-  detailComment.textContent = `Comment: ${ramen.comment}`;
+function displayRamens() {
+    fetch("http://localhost:3000/ramens")
+        .then(response => response.json())
+        .then(ramens => {
+            const menu = document.getElementById("ramen-menu");
+            menu.innerHTML = ""; 
+            ramens.forEach(ramen => {
+                const img = document.createElement("img");
+                img.src = ramen.image;
+                img.alt = ramen.name;
+                img.addEventListener("click", () => handleClick(ramen));
+                menu.appendChild(img);
+            });
+            if (ramens.length > 0) handleClick(ramens[0]); 
+        });
 }
 
-export function addSubmitListener() {
-  const form = document.getElementById("new-ramen");
+function handleClick(ramen) {
+    document.querySelector("#ramen-detail .detail-image").src = ramen.image;
+    document.querySelector("#ramen-detail .name").textContent = ramen.name;
+    document.querySelector("#ramen-detail .restaurant").textContent = ramen.restaurant;
+    document.querySelector("#rating-display").textContent = ramen.rating;
+    document.querySelector("#comment-display").textContent = ramen.comment;
+}
 
-  form.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const newRamen = {
-      name: form.name.value,
-      restaurant: form.restaurant.value,
-      image: form.image.value,
-      rating: form.rating.value,
-      comment: form.comment.value,
-    };
+function addSubmitListener() {
+    document.getElementById("new-ramen").addEventListener("submit", function (event) {
+        event.preventDefault();
+        const newRamen = {
+            name: this.name.value,
+            restaurant: this.restaurant.value,
+            image: this.image.value,
+            rating: this.rating.value,
+            comment: this.comment.value,
+        };
+        addRamenToMenu(newRamen);
+        this.reset();
+    });
+}
 
-    // Add new ramen to menu
+function addRamenToMenu(ramen) {
+    const menu = document.getElementById("ramen-menu");
     const img = document.createElement("img");
-    img.src = newRamen.image;
-    img.alt = newRamen.name;
-    img.addEventListener("click", () => handleClick(newRamen));
-    document.getElementById("ramen-menu").appendChild(img);
-
-    form.reset();
-  });
+    img.src = ramen.image;
+    img.alt = ramen.name;
+    img.addEventListener("click", () => handleClick(ramen));
+    menu.appendChild(img);
 }
+
+// Update Ramen Details
+const editForm = document.getElementById("edit-ramen");
+editForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    const updatedRating = document.getElementById("new-rating").value;
+    const updatedComment = document.getElementById("new-comment").value;
+    
+    const currentRamen = document.querySelector("#ramen-detail .name").textContent;
+    fetch("http://localhost:3000/ramens")
+        .then(response => response.json())
+        .then(ramens => {
+            const ramen = ramens.find(r => r.name === currentRamen);
+            if (ramen) {
+                fetch(`http://localhost:3000/ramens/${ramen.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ rating: updatedRating, comment: updatedComment })
+                })
+                .then(() => {
+                    document.querySelector("#rating-display").textContent = updatedRating;
+                    document.querySelector("#comment-display").textContent = updatedComment;
+                });
+            }
+        });
+});
+
+// Delete Ramen
+const deleteBtn = document.createElement("button");
+deleteBtn.textContent = "Delete";
+deleteBtn.addEventListener("click", function () {
+    const currentRamen = document.querySelector("#ramen-detail .name").textContent;
+    fetch("http://localhost:3000/ramens")
+        .then(response => response.json())
+        .then(ramens => {
+            const ramen = ramens.find(r => r.name === currentRamen);
+            if (ramen) {
+                fetch(`http://localhost:3000/ramens/${ramen.id}`, { method: "DELETE" })
+                .then(() => {
+                    displayRamens(); 
+                    document.querySelector("#ramen-detail .detail-image").src = "";
+                    document.querySelector("#ramen-detail .name").textContent = "";
+                    document.querySelector("#ramen-detail .restaurant").textContent = "";
+                    document.querySelector("#rating-display").textContent = "";
+                    document.querySelector("#comment-display").textContent = "";
+                });
+            }
+        });
+});
+document.getElementById("ramen-detail").appendChild(deleteBtn);
